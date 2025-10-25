@@ -105,6 +105,7 @@ section{
     align-items: center;
     justify-content: flex-start;
     padding: 0 16%; /* hilangkan padding vertical bawaan section */
+    box-sizing: border-box;
 }
 
 
