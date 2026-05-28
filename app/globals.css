@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-bg text-white font-sans;
+  }
+}
+
+@layer components {
+  /* Section padding mirror style.css lama (110px 16% 90px) + breakpoint override */
+  .section-pad {
+    @apply px-[16%] pt-[110px] pb-[90px];
+  }
+  @media (max-width: 1700px) {
+    .section-pad {
+      @apply px-[8%] pt-[90px] pb-[80px];
+    }
+  }
+}
