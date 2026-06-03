@@ -53,6 +53,7 @@ export async function sendEmail(
   });
 
   if (error) {
+    console.error(error);
     return {
       status: "error",
       message: "Failed to send message. Please try again later.",
