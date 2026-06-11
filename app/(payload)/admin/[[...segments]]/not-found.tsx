@@ -5,8 +5,8 @@ import type { Metadata } from "next";
 import { importMap } from "../importMap.js";
 
 type Args = {
-  params: Promise<{ segments?: string[] }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  params: Promise<{ segments: string[] }>;
+  searchParams: Promise<{ [key: string]: string | string[] }>;
 };
 
 export const generateMetadata = ({ params, searchParams }: Args): Promise<Metadata> =>
