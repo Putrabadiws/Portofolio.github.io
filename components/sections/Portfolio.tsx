@@ -1,14 +1,17 @@
-"use client";
+import { getPayload } from "payload";
+import config from "@payload-config";
 
-import Image from "next/image";
-import { motion } from "framer-motion";
-import { FaBehance, FaGithub, FaFigma } from "react-icons/fa";
 import SectionTitle from "@/components/ui/SectionTitle";
+import PortfolioGrid from "@/components/sections/PortfolioGrid";
 import type { PortfolioItem } from "@/types";
 
+// Fallback statis — dipakai kalau:
+//   1. DATABASE_URI/PAYLOAD_SECRET belum diset (mis. local pertama kali setup), atau
+//   2. fetch Payload melempar error (DB down, dst).
+// Tujuannya: landing page tidak pernah blank meskipun CMS bermasalah.
 // NOTE: fix bug versi statis — LiterasiCTSA sebelumnya ber-link ke Fundex gallery.
 // Untuk sementara href dibiarkan sebagai placeholder "#" dengan TODO; ganti dengan URL asli.
-const ITEMS: PortfolioItem[] = [
+const FALLBACK_ITEMS: PortfolioItem[] = [
   {
     image: "/img/porto-1.png",
     category: "UI/UX Design",
@@ -53,60 +56,65 @@ const ITEMS: PortfolioItem[] = [
   },
 ];
 
-const PLATFORM_ICON = {
-  behance: FaBehance,
-  github: FaGithub,
-  figma: FaFigma,
+// Cache 60s — Payload data jarang berubah; mengurangi roundtrip DB di hot path landing page.
+// Kalau perlu instant refresh setelah edit di /admin, ganti ke revalidate=0 atau panggil
+// revalidatePath("/") di hook afterChange Payload.
+export const revalidate = 60;
+
+type PayloadPortfolio = {
+  id: string | number;
+  title: string;
+  category: string;
+  href: string;
+  platform: PortfolioItem["platform"];
+  image: { url?: string | null } | string | number | null;
 };
 
-export default function Portfolio() {
+async function fetchItems(): Promise<PortfolioItem[]> {
+  if (!process.env.DATABASE_URI || !process.env.PAYLOAD_SECRET) {
+    return FALLBACK_ITEMS;
+  }
+  try {
+    const payload = await getPayload({ config });
+    const { docs } = await payload.find({
+      collection: "portfolio-items",
+      limit: 50,
+      sort: "order",
+      depth: 1, // populate field image -> Media doc
+    });
+
+    const items: PortfolioItem[] = (docs as PayloadPortfolio[])
+      .map((doc) => {
+        const imageUrl =
+          typeof doc.image === "object" && doc.image && "url" in doc.image
+            ? doc.image.url ?? null
+            : null;
+        if (!imageUrl) return null;
+        return {
+          image: imageUrl,
+          category: doc.category,
+          title: doc.title,
+          href: doc.href,
+          platform: doc.platform,
+        } satisfies PortfolioItem;
+      })
+      .filter((x): x is PortfolioItem => x !== null);
+
+    return items.length > 0 ? items : FALLBACK_ITEMS;
+  } catch (err) {
+    // Payload belum terkonek / DB down — jangan crash landing page, log saja.
+    console.error("[Portfolio] failed to fetch from Payload, using fallback:", err);
+    return FALLBACK_ITEMS;
+  }
+}
+
+export default async function Portfolio() {
+  const items = await fetchItems();
+
   return (
     <section id="portofolio" className="section-pad bg-bg-secondary">
       <SectionTitle prefix="Latest" accent="Portofolio" />
-
-      <motion.div
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: false, margin: "0px 0px 200px 0px" }}
-        // Parent koordinator — stagger 150ms per card; 6 item jadi total ~0.9s
-        variants={{
-          hidden: {},
-          visible: { transition: { staggerChildren: 0.15 } },
-        }}
-        className="grid grid-cols-[repeat(auto-fit,minmax(300px,auto))] gap-[2.3rem] mt-[4.2rem]"
-      >
-        {ITEMS.map((item) => {
-          const Icon = PLATFORM_ICON[item.platform];
-          return (
-            <motion.a
-              key={item.title}
-              href={item.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              variants={{
-                hidden: { opacity: 0, y: 50 },
-                visible: { opacity: 1, y: 0, transition: { duration: 1.4 } },
-              }}
-              className="block bg-bg-card rounded-[28px] border border-transparent shadow-accent-sm p-5 hover:border-accent hover:-translate-y-[5px] hover:scale-[1.03] transition-all duration-500"
-            >
-              <Image
-                src={item.image}
-                alt={item.title}
-                width={500}
-                height={350}
-                className="w-full h-auto rounded-[28px] mb-[1.4rem]"
-              />
-              <div className="flex items-center justify-between mb-2">
-                <h5 className="text-[20px] font-semibold text-muted">{item.category}</h5>
-                <span className="inline-flex items-center justify-center w-[55px] h-[55px] text-[17px] rounded-full text-white bg-accent-alt">
-                  <Icon />
-                </span>
-              </div>
-              <h4 className="text-[25px] font-bold leading-[1.4] mb-[10px]">{item.title}</h4>
-            </motion.a>
-          );
-        })}
-      </motion.div>
+      <PortfolioGrid items={items} />
     </section>
   );
 }

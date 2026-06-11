@@ -21,7 +21,7 @@ const ICON_MAP = {
 };
 
 const CV_URL =
-  "https://drive.google.com/file/d/1HGmlfb6OHiZCb4wum8POSntrdKH7Vg2u/view?usp=drive_link";
+  "https://drive.google.com/file/d/1bBg3F0fea1XdAFuOgzqydmoyyQhwrWTR/view?usp=sharing";
 
 export default function Hero() {
   return (
